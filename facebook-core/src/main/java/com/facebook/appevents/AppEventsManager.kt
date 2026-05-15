@@ -25,6 +25,7 @@ import com.facebook.appevents.integrity.ProtectedModeManager
 import com.facebook.appevents.integrity.RedactedEventsManager
 import com.facebook.appevents.integrity.SensitiveParamsManager
 import com.facebook.appevents.integrity.StdParamsEnforcementManager
+import com.facebook.appevents.integrity.VVPManager
 import com.facebook.appevents.internal.AutomaticAnalyticsLogger.isImplicitPurchaseLoggingEnabled
 import com.facebook.appevents.restrictivedatafilter.RestrictiveDataManager
 import com.facebook.internal.FeatureManager
@@ -126,6 +127,11 @@ object AppEventsManager {
                     checkFeature(FeatureManager.Feature.GPSTopicsObservation) { enabled ->
                         if (enabled) {
                             GpsTopicsManager.enableTopicsObservation()
+                        }
+                    }
+                    checkFeature(FeatureManager.Feature.VVP) { enabled ->
+                        if (enabled) {
+                            VVPManager.enable()
                         }
                     }
                 }

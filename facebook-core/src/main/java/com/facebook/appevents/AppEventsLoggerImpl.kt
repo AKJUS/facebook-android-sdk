@@ -35,6 +35,7 @@ import com.facebook.appevents.integrity.MACARuleMatchingManager
 import com.facebook.appevents.integrity.ProtectedModeManager
 import com.facebook.appevents.integrity.ProtectedModeManager.processParametersForProtectedMode
 import com.facebook.appevents.integrity.SensitiveParamsManager.processFilterSensitiveParams
+import com.facebook.appevents.integrity.VVPManager
 import com.facebook.appevents.integrity.StdParamsEnforcementManager.processFilterParamSchemaBlocking
 import com.facebook.appevents.internal.ActivityLifecycleTracker.getCurrentSessionGuid
 import com.facebook.appevents.internal.ActivityLifecycleTracker.isInBackground
@@ -409,6 +410,7 @@ internal constructor(activityName: String, applicationId: String?, accessToken: 
             MACARuleMatchingManager.processParameters(modifiedParameters, eventName)
             processFilterParamSchemaBlocking(modifiedParameters)
             processParametersForProtectedMode(modifiedParameters)
+            VVPManager.processParametersForVVP(eventName, modifiedParameters)
             val event =
                 AppEvent(
                     contextName,
