@@ -113,6 +113,8 @@ object FeatureManager {
         featureMapping[Feature.GPSARATriggers] = arrayOf("com.facebook.appevents.gps.ara.GpsARAManager")
         featureMapping[Feature.GPSPACAProcessing] = arrayOf("com.facebook.appevents.gps.pa.PACustomAudienceClient")
         featureMapping[Feature.GPSTopicsObservation] = arrayOf("com.facebook.appevents.gps.topics.GpsTopicsManager")
+        featureMapping[Feature.VVP] =
+            arrayOf("com.facebook.appevents.integrity.VVPManager")
     }
 
     private fun getGKStatus(feature: Feature): Boolean {
@@ -160,6 +162,7 @@ object FeatureManager {
             Feature.GPSARATriggers,
             Feature.GPSPACAProcessing,
             Feature.GPSTopicsObservation,
+            Feature.VVP,
             Feature.ReferrerForDeepLink -> false
 
             else -> true
@@ -194,6 +197,7 @@ object FeatureManager {
         FilterSensitiveParams(0x00010408), /* filter out the sensitive params */
         StdParamEnforcement(0x01010409),
         BannedParamFiltering(0x0101040a),
+        VVP(0x0101040b), /* VPPA video viewing protections */
         EventDeactivation(0x00010500),
         OnDeviceEventProcessing(0x00010600),
         OnDevicePostInstallEventProcessing(0x00010601),
@@ -268,6 +272,7 @@ object FeatureManager {
                 GPSARATriggers -> "GPSARATriggers"
                 GPSPACAProcessing-> "GPSPACAProcessing"
                 GPSTopicsObservation -> "GPSTopicsObservation"
+                VVP -> "VVP"
                 ReferrerForDeepLink -> "ReferrerForDeepLink"
                 ServiceUpdateCompliance -> "ServiceUpdateCompliance"
                 Login -> "LoginKit"
