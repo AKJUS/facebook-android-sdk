@@ -8,18 +8,20 @@
 
 package com.facebook.appevents.integrity
 
+import android.os.Bundle
 import com.facebook.FacebookSdk
 import com.facebook.internal.FetchedAppSettingsManager
 import com.facebook.internal.instrument.crashshield.AutoHandleExceptions
 import java.util.regex.Pattern
+import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
 
 /**
  * VPPA Video Viewing Protections — Android SDK side. Mirrors the JS pixel plugin
  * (`SignalsFBEvents.plugins.vvp.js`). Consumes the `vvp_config` field served by
- * `GraphApplicationProtectedModeRulesNode` (parsed into `FetchedAppSettings.vvpConfig`) and
- * exposes a typed [VVPConfig] for the per-event hook to consult.
+ * `GraphApplicationProtectedModeRulesNode` (parsed into `FetchedAppSettings.vvpConfig`) and exposes
+ * a typed [VVPConfig] for the per-event hook to consult.
  *
  * This file owns parsing + lifecycle only. Detection / sanitization / payload tagging will be added
  * in subsequent diffs.
@@ -39,6 +41,28 @@ object VVPManager {
   private const val PLACE_KEY = "place"
   private const val KEY_REGEX_KEY = "keyRegex"
   private const val VALUE_REGEX_KEY = "valueRegex"
+
+  // Outgoing payload keys appended to the event Bundle when VVP enforces.
+  // Mirror of the JS plugin's `vvp` / `vvp_md` and the server-side
+  // `AdsPixelRequestParams::VVP_CLIENT_SIDE_ENFORCED / VVP_CLIENT_SIDE_METADATA`.
+  private const val VVP_IS_APPLIED_KEY = "vvp"
+  private const val VVP_IS_APPLIED_VALUE = "1"
+  private const val VVP_METADATA_KEY = "vvp_md"
+
+  // Sub-buckets inside the JSON-encoded vvp_md payload — mirror PHP
+  // SIEventContextParams::RESTRICTED_PARAMS ("rp") prefixed with "vp_".
+  private const val VP_RP = "vp_rp"
+  private const val VP_RP_EV = "vp_rp_ev"
+
+  // Sentinel pushed to vp_rp_ev when an event-name rule fires; we never
+  // echo the actual event name back (it can itself be sensitive).
+  private const val EVENT_NAME_SENTINEL = "1"
+
+  // CustomData keys whose values are sanitized (replaced with SANITIZED_VALUE)
+  // instead of being deleted outright when VVP enforces. Mirror of PHP
+  // `SignalsIntegrityVVPUtils::APP_CONTENT_ID_KEYS`.
+  private val CONTENT_ID_SANITIZE_KEYS = setOf("fb_content_ids", "fb_content_id")
+  private const val SANITIZED_VALUE = "_removed_"
 
   /**
    * One detection rule, with regexes pre-compiled at parse time. Either regex can be null (meaning
@@ -74,8 +98,7 @@ object VVPManager {
 
   /** Reload [config] from the latest [FetchedAppSettings.vvpConfig] payload. */
   internal fun loadConfig() {
-    val settings =
-        FetchedAppSettingsManager.queryAppSettings(FacebookSdk.getApplicationId(), false)
+    val settings = FetchedAppSettingsManager.queryAppSettings(FacebookSdk.getApplicationId(), false)
     val raw = settings?.vvpConfig
     config =
         if (raw.isNullOrEmpty()) {
@@ -179,6 +202,98 @@ object VVPManager {
       }
     }
     return out
+  }
+
+  /**
+   * Per-event hook. Called from the SDK's event send pipeline (alongside
+   * [ProtectedModeManager.processParametersForProtectedMode]). Returns early if VVP is disabled,
+   * the event isn't in scope, or no rule matches. On match: sanitizes / strips customData keys per
+   * the standardParams allowlist (with content-ID keys replaced rather than dropped), and tags the
+   * bundle with `vvp=1` plus a JSON-encoded `vvp_md` describing which keys / event-name triggered
+   * the match.
+   */
+  @JvmStatic
+  fun processParametersForVVP(eventName: String, parameters: Bundle?) {
+    if (!enabled || parameters == null || parameters.isEmpty) {
+      return
+    }
+    val cfg = config ?: return
+
+    // RETAIL purchase-funnel gate (null/empty = no gate, NON_RETAIL config).
+    val gate = cfg.inScopeEventNames
+    if (gate != null && gate.isNotEmpty() && eventName !in gate) {
+      return
+    }
+
+    val cdKeys = LinkedHashSet<String>()
+    val evNames = LinkedHashSet<String>()
+    var matched = false
+
+    for (rule in cfg.rules) {
+      when (rule.place) {
+        PLACE_EVENT_NAME -> {
+          // Event-name rule — keyRegex matches the eventName itself.
+          if (rule.keyRegex != null && rule.keyRegex.matcher(eventName).find()) {
+            matched = true
+            // Sentinel — never echo the actual event name back (it can be sensitive).
+            evNames.add(EVENT_NAME_SENTINEL)
+          }
+        }
+        PLACE_CUSTOM_DATA -> {
+          // CustomData rule — walk every (key, value) pair.
+          //   keyRegex null = no key constraint
+          //   valueRegex null = no value constraint
+          // Both null already filtered out at compile time (compileRule).
+          for (key in parameters.keySet().toList()) {
+            val value = parameters.get(key)?.toString() ?: continue
+            val keyOk = rule.keyRegex?.matcher(key)?.find() ?: true
+            val valOk = rule.valueRegex?.matcher(value)?.find() ?: true
+            if (keyOk && valOk) {
+              matched = true
+              cdKeys.add(key)
+            }
+          }
+        }
+      }
+    }
+
+    if (!matched) {
+      return
+    }
+
+    // Sanitize / filter customData. Snapshot the keys first since we mutate
+    // the bundle in the loop.
+    if (cfg.standardParams.isNotEmpty()) {
+      val keysSnapshot = parameters.keySet().toList()
+      for (key in keysSnapshot) {
+        if (key in cfg.standardParams) {
+          continue
+        }
+        if (key in CONTENT_ID_SANITIZE_KEYS) {
+          // Preserve the key on the payload (downstream attribution expects
+          // it) but scrub the actual identifier.
+          parameters.putString(key, SANITIZED_VALUE)
+        } else {
+          parameters.remove(key)
+        }
+      }
+    }
+
+    parameters.putString(VVP_IS_APPLIED_KEY, VVP_IS_APPLIED_VALUE)
+
+    // Emit vvp_md only when there's something to report. JSON shape mirrors
+    // the JS plugin: { vp_rp: [...customData keys], vp_rp_ev: ["1"] }.
+    // Empty buckets are omitted; the entire field is omitted if both empty.
+    if (cdKeys.isNotEmpty() || evNames.isNotEmpty()) {
+      val md = JSONObject()
+      if (cdKeys.isNotEmpty()) {
+        md.put(VP_RP, JSONArray(cdKeys.toList()))
+      }
+      if (evNames.isNotEmpty()) {
+        md.put(VP_RP_EV, JSONArray(evNames.toList()))
+      }
+      parameters.putString(VVP_METADATA_KEY, md.toString())
+    }
   }
 
   /** Reset all state — for tests. */
