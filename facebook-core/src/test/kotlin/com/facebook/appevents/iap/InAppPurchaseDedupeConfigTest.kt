@@ -93,6 +93,7 @@ class InAppPurchaseDedupeConfigTest : FacebookPowerMockTestCase() {
             sensitiveParams = emptyJSONArray,
             schemaRestrictions = emptyJSONArray,
             bannedParams = emptyJSONArray,
+            vvpConfig = null,
             currencyDedupeParameters = currencyParameters,
             purchaseValueDedupeParameters = purchaseAmountParameters,
             prodDedupeParameters = dedupeParameters,

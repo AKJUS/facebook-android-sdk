@@ -186,6 +186,7 @@ class StdParamEnforcementManagerTest : FacebookPowerMockTestCase() {
             sensitiveParams = emptyJSONArray,
             schemaRestrictions = mockSchemaRestrictionsConfigFromServer,
             bannedParams = emptyJSONArray,
+            vvpConfig = null,
             currencyDedupeParameters = emptyList(),
             purchaseValueDedupeParameters = emptyList(),
             prodDedupeParameters = emptyList(),

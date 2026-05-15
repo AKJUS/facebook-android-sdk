@@ -47,6 +47,7 @@ class FetchedAppSettings(
     val sensitiveParams: JSONArray?,
     val schemaRestrictions: JSONArray?,
     val bannedParams: JSONArray?,
+    val vvpConfig: String?,
     val currencyDedupeParameters: List<String>?,
     val purchaseValueDedupeParameters: List<String>?,
     val prodDedupeParameters: List<Pair<String, List<String>>>?,

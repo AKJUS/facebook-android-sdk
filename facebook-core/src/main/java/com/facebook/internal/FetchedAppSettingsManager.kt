@@ -80,6 +80,7 @@ object FetchedAppSettingsManager {
     private const val DEDUPE_WINDOW = "iap_manual_and_auto_log_dedup_window_millis"
     private const val STD_PARAMS_SCHEMA_KEY = "standard_params_schema"
     private const val STD_PARAMS_BLOCKED_KEY = "standard_params_blocked"
+    private const val VVP_CONFIG_KEY = "vvp_config"
     internal const val AUTO_LOG_APP_EVENTS_DEFAULT_FIELD = "auto_log_app_events_default"
     internal const val AUTO_LOG_APP_EVENT_ENABLED_FIELD = "auto_log_app_events_enabled"
 
@@ -351,6 +352,7 @@ object FetchedAppSettingsManager {
                     settingsJSON.optJSONObject(PROTECTED_MODE_RULES),
                     STD_PARAMS_BLOCKED_KEY
                 ),
+                parseVVPConfig(settingsJSON.optJSONObject(PROTECTED_MODE_RULES)),
                 parseCurrencyAndValueDedupeParameters(
                     appEventsConfig,
                     AppEventsConstants.EVENT_PARAM_CURRENCY
@@ -436,6 +438,13 @@ object FetchedAppSettingsManager {
             rule = protectedModeSettings.optJSONArray(ruleType)
         }
         return rule
+    }
+
+    private fun parseVVPConfig(protectedModeSettings: JSONObject?): String? {
+        if (protectedModeSettings == null || protectedModeSettings.isNull(VVP_CONFIG_KEY)) {
+            return null
+        }
+        return protectedModeSettings.optString(VVP_CONFIG_KEY, null)
     }
 
     private fun parseCurrencyAndValueDedupeParameters(

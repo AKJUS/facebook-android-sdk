@@ -96,6 +96,7 @@ class RedactedEventsManagerTest : FacebookPowerMockTestCase() {
             sensitiveParams = emptyJSONArray,
             schemaRestrictions = emptyJSONArray,
             bannedParams = emptyJSONArray,
+            vvpConfig = null,
             currencyDedupeParameters = emptyList(),
             purchaseValueDedupeParameters = emptyList(),
             prodDedupeParameters = emptyList(),

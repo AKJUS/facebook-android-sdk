@@ -79,6 +79,7 @@ class SensitiveParamsManagerTest : FacebookPowerMockTestCase() {
             sensitiveParams = mockSensitiveParams,
             schemaRestrictions = emptyJSONArray,
             bannedParams = emptyJSONArray,
+            vvpConfig = null,
             currencyDedupeParameters = emptyList(),
             purchaseValueDedupeParameters = emptyList(),
             prodDedupeParameters = emptyList(),

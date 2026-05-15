@@ -102,6 +102,7 @@ class InAppPurchaseManagerTest : FacebookPowerMockTestCase() {
             sensitiveParams = null,
             schemaRestrictions = null,
             bannedParams = null,
+            vvpConfig = null,
             currencyDedupeParameters = null,
             purchaseValueDedupeParameters = null,
             prodDedupeParameters = null,

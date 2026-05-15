@@ -74,6 +74,7 @@ class BannedParamsManagerTest : FacebookPowerMockTestCase() {
             sensitiveParams = emptyJSONArray,
             schemaRestrictions = emptyJSONArray,
             bannedParams = mockBlockedParams,
+            vvpConfig = null,
             currencyDedupeParameters = emptyList(),
             purchaseValueDedupeParameters = emptyList(),
             prodDedupeParameters = emptyList(),
